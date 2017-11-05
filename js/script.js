@@ -1,4 +1,6 @@
 (function($){
+  if (location.protocol == 'http:') location.protocol = 'https:';
+
   // Search
   var $searchWrap = $('#search-form-wrap'),
     isSearchAnim = false,
