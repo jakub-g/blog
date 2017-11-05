@@ -1,5 +1,7 @@
 (function($){
-  if (location.protocol == 'http:') location.protocol = 'https:';
+  if (location.protocol == 'http:' && location.hostname !== 'localhost') {
+    location.protocol = 'https:';
+  }
 
   // Search
   var $searchWrap = $('#search-form-wrap'),
