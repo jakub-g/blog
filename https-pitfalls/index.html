@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>Real-world HTTPS deployment pitfalls (part 1) | Jakub&#39;s dev blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="…or one year from life of a web/app developer, seeing broken HTTPS in the wild
+All the things written below actually happened to my team, other teams at my company, or our external partners!
+
+Who is t">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Real-world HTTPS deployment pitfalls (part 1)">
+<meta property="og:url" content="https://jakub.gieryluk.net/blog/https-pitfalls/index.html">
+<meta property="og:site_name" content="Jakub's dev blog">
+<meta property="og:description" content="…or one year from life of a web/app developer, seeing broken HTTPS in the wild
+All the things written below actually happened to my team, other teams at my company, or our external partners!
+
+Who is t">
+<meta property="og:image" content="https://jakub.gieryluk.net/blog/blog/https-pitfalls/fiddler-certs-expiring-in-30-days.png">
+<meta property="og:image" content="https://jakub.gieryluk.net/blog/blog/https-pitfalls/github-cert.png">
+<meta property="og:image" content="https://jakub.gieryluk.net/blog/blog/https-pitfalls/extra-downloads.png">
+<meta property="og:updated_time" content="2017-11-05T21:56:57.065Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Real-world HTTPS deployment pitfalls (part 1)">
+<meta name="twitter:description" content="…or one year from life of a web/app developer, seeing broken HTTPS in the wild
+All the things written below actually happened to my team, other teams at my company, or our external partners!
+
+Who is t">
+<meta name="twitter:image" content="https://jakub.gieryluk.net/blog/blog/https-pitfalls/fiddler-certs-expiring-in-30-days.png">
+  
+    <link rel="alternate" href="/atom.xml" title="Jakub&#39;s dev blog" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  
+    <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  
+  <link rel="stylesheet" href="/blog/css/style.css">
+  
+
+</head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/blog/" id="logo">Jakub&#39;s dev blog</a>
+      </h1>
+      
+        <h2 id="subtitle-wrap">
+          <a href="/blog/" id="subtitle">web, android, git, https and other stuff</a>
+        </h2>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/blog/">Home</a>
+        
+          <a class="main-nav-link" href="/blog/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://jakub.gieryluk.net/blog"></form>
+      </div>
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main"><article id="post-https-pitfalls" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/blog/https-pitfalls/" class="article-date">
+  <time datetime="2017-11-04T20:00:00.000Z" itemprop="datePublished">2017-11-04</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Real-world HTTPS deployment pitfalls (part 1)
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>…or one year from life of a web/app developer, seeing broken HTTPS in the wild</p>
+<p>All the things written below actually happened to my team, other teams at my company, or our external partners!</p>
+<hr>
+<p><em>Who is this post for:</em> web &amp; app developers, devops, sysadmins; <strong>particularly if you’re working in a big company and roll out HTTPS on your own</strong></p>
+<p><em>Technical difficulty:</em> low / intermediate (you know what is HTTPS, a CA, a certificate)</p>
+<p><strong><em>TL;DR: if you have only 2 minutes now, go to <a href="https://www.ssllabs.com/ssltest/" target="_blank" rel="external">SSL Labs</a> and check your domain.
+If you see anything in red or orange, compare your results with major websites like Google, GitHub, Microsoft, Guardian etc.
+If the given problem is not present on any major site, but only on yours, it probably means you need to fix it NOW.</em></strong></p>
+<h1 id="Introductory-self-Q-amp-A"><a href="#Introductory-self-Q-amp-A" class="headerlink" title="Introductory self-Q&amp;A"></a>Introductory self-Q&amp;A</h1><p><em>“I’m a just a developer and HTTPS is a devops things, do I really need to read all of that?”</em></p>
+<p>If you’re a dev in a company migrating to HTTPS soon,
+or your newly created project will be using HTTPS, <em>this post is for you</em>.
+Even if your website is already in production, you may learn a thing or two.</p>
+<p>Your devops will put things in place, and stuff will <em>mostly work</em>,
+but they might not know all the arcane details of all web browsers,
+and all requirements for your product, and then it will be <em>you</em>
+who will have to debug stuff. So at least glance over the headlines and TL;DRs to get yourself familiar with common issues.</p>
+<p><em>“We have a staging environment, we’ll catch everything before long deploying to prod!”</em></p>
+<p><strong>Only as long as 1) your staging env has exactly the same HTTPS cert and
+config as production</strong> (in big companies, it might not be the case, due to domain name differences and internal
+policies), and 2) you <strong>test all possible browsers and operating systems</strong>
+(but it may still not be enough!)</p>
+<p><em>“Is it really that hard?”</em></p>
+<p>If you don’t want to break things for the end-users, it takes time.
+Have a look for example at <a href="https://www.theguardian.com/info/developer-blog/2016/nov/29/the-guardian-has-moved-to-https" target="_blank" rel="external">this blog from The Guardian</a>.</p>
+<p>I will try not to repeat too many obvious things in this guide. I assume you already know
+basic stuff about HTTPS from different sources.
+<strong>Instead I will point some things that might be easily overlooked, or not noticed at all
+if you’re (un)lucky - until you have an urgent issue in production.</strong>.</p>
+<h1 id="Forgetting-about-certificate-expiration"><a href="#Forgetting-about-certificate-expiration" class="headerlink" title="Forgetting about certificate expiration"></a>Forgetting about certificate expiration</h1><p><em>TL;DR: don’t rely only on a once-a-year email reminder</em></p>
+<p>I temporarily break my promise and start from trivial yet costly mistake, similar to forgetting to renew a domain, but it happens nonetheless. At least every few weeks I stumble upon a high profile page with expired cert, or a near-miss.</p>
+<p>Obviously you should have a well-defined process, with email reminder and someone responsible for taking the action, but…</p>
+<p>Apart from that, <strong>if you use Fiddler regularly, you can use <a href="https://gist.github.com/ericlaw1979/678ed408075da213f742" target="_blank" rel="external">a few lines of FiddlerScript</a> to highlight HTTPS sessions that are using soon-expiring certs</strong> <em>(thanks to Eric Lawrence for publishing it)</em>, so that the expiration catches your attention before it’s too late. You may want to customize it to only highlight sessions touching particular domain names of your interest:</p>
+<pre><code>if (e.Session.hostname.EndsWith(&quot;mydomain.net&quot;) ||
+    e.Session.hostname.EndsWith(&quot;mydomain.com&quot;)) {
+  e.Session[&quot;ui-backcolor&quot;] = &quot;red&quot;;
+  e.Session[&quot;ui-color&quot;] = &quot;white&quot;;
+}
+</code></pre><img src="/blog/https-pitfalls/fiddler-certs-expiring-in-30-days.png" alt="Certificates expiring in less than 30 days" title="Certificates expiring in less than 30 days">
+<p>Don’t wait to renew the certificate on the last possible day (in particular when it expires on Sunday!) to avoid putting unnecessary stress on your team.</p>
+<h1 id="Missing-intermediate-certificates"><a href="#Missing-intermediate-certificates" class="headerlink" title="Missing intermediate certificates"></a>Missing intermediate certificates</h1><p><em>TL;DR: run <a href="https://www.ssllabs.com/" target="_blank" rel="external">SSL Labs</a> check on your domain and if you see “Extra download” in certification path, <strong>go now and fix it</strong> and come back when done!</em></p>
+<p>First, quick primer on how CA (Certificate Authority) system works. Let’s use GitHub as an example.</p>
+<p>In the image below you see a certificate chain for github.com. There are 3 certs in play:</p>
+<img src="/blog/https-pitfalls/github-cert.png" alt="Missing intermediate certificates" title="Missing intermediate certificates">
+<ol>
+<li>Server cert (leaf): This is GitHub’s public cert that they use to secure the TLS session with the user’s browser.</li>
+<li>Intermediate cert of DigiCert, a Certificate Authority which signed (i.e. verified the authenticity) of the cert from GitHub (cert #1).</li>
+<li>Root cert (high-trust cert) of DigiCert, which signed (i.e. verified the authencity) of the other cert from DigiCert (cert #2). This cert, like all the root certs, is self-signed by the issuer; all the root certs are self-signed by definition.</li>
+</ol>
+<p>Web browsers and operating systems typically ship with <em>dozens and dozens</em> of root certs embedded in their CA stores. When a server administrator wants to obtain a new certificate, the Certificate Authority, for operational reasons, will not sign it with a root cert directly, but instead it will do it with an <em>intermediate cert</em>. Anything in the chain between leaf cert (yourdomain.com) and the root cert is an intermediate cert. In a typical situation, there are 1 or 2 intermediate certs.</p>
+<p>To verify the website’s cert, the browser needs to have <em>a full chain of certification</em>, to verify trust of each link of the chain. The leaf cert is always sent by the server, the root certs are available in the browser, but where does the browser get the intermediate certificates from? There are two options:</p>
+<ol>
+<li>either <em>server sends</em> all the intermediate certs,</li>
+<li>or the browser needs to get them from <em>somewhere</em>.</li>
+</ol>
+<p>The screenshot above shows GitHub properly sending the intermediate cert. <strong>But what happens in the other case? It’s implementation-specific, depends on the browser and platform:</strong></p>
+<ul>
+<li>if the browser happens to have an intermediate cert cached locally, because some other website that the user has visited served it, it will be reused;</li>
+<li>if the intermediate cert is not cached, some browsers will fetch it, but some won’t; <strong>in particular, Android WebView and all versions of Firefox do not fetch any missing certs!</strong></li>
+</ul>
+<p>See an example of <a href="https://incomplete-chain.badssl.com/" target="_blank" rel="external">a misconfigured server</a> below:</p>
+<img src="/blog/https-pitfalls/extra-downloads.png" alt="Missing intermediate certificates" title="Missing intermediate certificates">
+<p>This servers’s cert can be verified via two certification paths (because the intermediary cert has been cross-signed by two different certs), but unfortunately none of paths can be reliably resolved by the browser without an extra download.</p>
+<p><strong>If you see “extra download” in SSL Labs, go now and fix it!</strong> Your page might be randomly not working for many of your users (but it might be sporadic enough that you don’t get any reports).</p>
+<p>See also:</p>
+<ul>
+<li><a href="https://www.thesslstore.com/blog/aia-fetching/" target="_blank" rel="external">AIA fetching of missing intermediate certs</a></li>
+<li><a href="https://bugzilla.mozilla.org/show_bug.cgi?id=399324" target="_blank" rel="external">Firefox bug: Fetch missing intermediate certs</a></li>
+</ul>
+<h1 id="TLS-1-2-and-old-Androids"><a href="#TLS-1-2-and-old-Androids" class="headerlink" title="TLS 1.2 and old Androids"></a>TLS 1.2 and old Androids</h1><p><em>TL;DR: make sure you don’t lose dozens of thousands of users before you roll out TLS 1.2</em></p>
+<p>HTTPS deployment is a fine balance between security and backward compatibility.
+The gold standard in 2017 is TLS 1.2, but it’s not supported by old operating systems and browsers
+(Internet Explorer on Windows XP, and very old Androids).</p>
+<p>Supporting outdated browsers means supporting insecure crypto and lowering security for everyone else.
+While most of the Android developers have stopped supporting pre-KitKat devices long time ago,
+there’s still a significant market share of KitKat (Android 4.4). According to <a href="https://developer.android.com/about/dashboards/index.html" target="_blank" rel="external">Android dashboard</a>,
+as of July 2017, <strong>17% of Android users still use KitKat</strong>. However, you should check the stats in Play Store console
+for the active users of your own app, and the stats there might be way different
+(as the variation between the countries is big).</p>
+<p>The interesting thing about KitKat is that while it has the capability to support TLS 1.2,
+<strong>it’s by default switched off</strong>, and while some vendors do support it, many do not.
+(There are even <a href="https://github.com/square/okhttp/issues/2372#issuecomment-244807676" target="_blank" rel="external">reports</a>
+of Samsung devices with Android 5.0 not supporting TLS 1.2, which in theory should not happen).</p>
+<p>Due to PCI-DSS compliance, you might be forced to migrate your server to TLS 1.2, but you should
+<strong>double check your user base statistics before</strong>, to avoid recklessly cutting out a big portion
+of the market from your services.</p>
+<p>The platform team in my company was <em>very</em> keen in late 2016 on migrating to TLS 1.2 (and removing
+support for TLS 1.1 and 1.0), but after some discussions we’ve decided to postpone it.
+We have reevaluated this summer, and we are finally planning to drop KitKat support and roll out
+TLS 1.2 in the coming weeks (end of 2017).</p>
+<h1 id="Using-HSTS-too-aggressively"><a href="#Using-HSTS-too-aggressively" class="headerlink" title="Using HSTS too aggressively"></a>Using HSTS too aggressively</h1><p><em>TL;DR: only roll out HSTS when everything else’s been checked and working well. Serve small <code>max-age</code> initially and increase as you gain confidence - or prepare to serve <code>max-age=0</code> in case of problems.</em></p>
+<p><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security" target="_blank" rel="external">HSTS</a> is a very useful security header which tells the browser to “remember” to always load all URLs from a given domain over HTTPS, even if HTTP URLs are encountered, for a given period of time described by <code>max-age</code> field in the header value. In other words, it prevents you from visiting unsecured HTTP pages.</p>
+<p><strong>Usually this is good, but obviously not when HTTPS version is not working properly,</strong> and the user really wants to see the HTTP version.</p>
+<p><em>Story time:</em> We have an on-site JIRA instance in my company; put in place several years ago over HTTP, but work began lately on serving JIRA and everything else over HTTPS.</p>
+<p>At some point, the implementation team enabled an http-&gt;https redirect and an HSTS header. For some reason though, it turned out some parts of the page were not working over https (not that obvious to diagnose for the end user), so the force-https config was disabled, and the recommendation from JIRA support team was to use http URLs.</p>
+<p>But, with HSTS it is not that easy: if you ever visited https version before, when visiting http URL later, you were redirected back to https page (the whole point of HSTS after all!), and  clearing standard browsing data didn’t help.</p>
+<p><strong>There are two solutions if your users get trapped by that problem:</strong></p>
+<ul>
+<li>You could serve <code>max-age=0</code> value for HSTS header which tells the browser to discard all HSTS data it has for the serving domain <em>(but this is taken into account by the browser only when served over HTTPS - as any other HSTS header value)</em>.</li>
+<li>Users may clear HSTS cache of the browser. Not very easy to do, and not user friendly; typically hidden in browser internals, for example: <code>chrome://net-internals/#hsts</code> in Chrome.</li>
+</ul>
+<p><strong>Obviously, the best solution is to be cautious and only implement HSTS when everything else was verified; also, put a small <code>max-age</code> (a few hours, a few days) first, and gradually increase when no problems are found.</strong></p>
+<p>Read more:</p>
+<ul>
+<li><a href="https://blog.qualys.com/securitylabs/2016/03/28/the-importance-of-a-proper-http-strict-transport-security-implementation-on-your-web-server" target="_blank" rel="external">Blog post on HSTS on Qualys Blog</a></li>
+</ul>
+<h1 id="Forgetting-about-www-nowww-when-deploying-HTTPS-CDN-or-security-proxy"><a href="#Forgetting-about-www-nowww-when-deploying-HTTPS-CDN-or-security-proxy" class="headerlink" title="Forgetting about www/nowww when deploying HTTPS, CDN, or security proxy"></a>Forgetting about www/nowww when deploying HTTPS, CDN, or security proxy</h1><p><em>TL;DR: do not forget about nowww. Make sure it works over http and redirects to https.</em></p>
+<p>Typically, your website has a canonical URL of <code>www.example.com</code> or <code>example.com</code>, so you have 2 entry points. Most likely you serve a redirect from one to the other, to avoid duplicated content.</p>
+<p>However with HTTPS in the game, each of the two is accessible either via http or https, <em>so you have 4 entry points total</em>.</p>
+<p>If you forget about your nowww domain, you might end up in the following situation:</p>
+<ol>
+<li>User types “example.com” in URL bar</li>
+<li>The server responds with a redirect to “<a href="https://example.com" target="_blank" rel="external">https://example.com</a>“</li>
+<li>Your HTTPS cert is not valid for nowww domain -&gt; <strong>scary warning, user runs away.</strong></li>
+</ol>
+<p>Another thing that could happen is that your traffic to nowww domain won’t be resolved at all and user will think that your page is down.</p>
+<p>The problem is so prevalent that modern browsers have some built-in magic to probe www domain in case of nowww not working, but as with any error recovery mechanism, it’s better to not rely on it.</p>
+<p>Actions:</p>
+<p>1) <strong>Make sure to choose one canonical entry point</strong> (say, <code>https://www.example.com</code>) and put redirects in place in your webserver’s config for the 3 remaining ones:</p>
+<ul>
+<li><a href="http://www.example.com" target="_blank" rel="external">http://www.example.com</a> -&gt; <a href="https://www.example.com" target="_blank" rel="external">https://www.example.com</a></li>
+<li><a href="http://example.com" target="_blank" rel="external">http://example.com</a> -&gt; <a href="https://www.example.com" target="_blank" rel="external">https://www.example.com</a></li>
+<li><a href="https://example.com" target="_blank" rel="external">https://example.com</a> -&gt; <a href="https://www.example.com" target="_blank" rel="external">https://www.example.com</a></li>
+</ul>
+<p>(You might want to write a simple bot that checks all of this each night and alerts you if a redirection stops working. Subsequent configuration changes, perhaps done by external teams – not unheard of in corporate environments – might break that redirection without anyone noticing.)</p>
+<p>2) Since <code>example.com</code> and <code>www.example.com</code> are different origins, a regular TLS cert with just one explicit domain name won’t work for both. <strong>You need a cert with SAN (Subject Alternative Name) matching both, for example: <code>*.example.com example.com</code> or <code>www.example.com example.com</code></strong></p>
+<p>3) SEO tip: Generate <code>&lt;link rel=&quot;canonical&quot; href=&quot;https://...&quot;&gt;</code> in the <code>&lt;head&gt;</code> of your HTML responses to make deduplication work easier for web crawlers.</p>
+<p>See also the following support entries from Google Webmasters:</p>
+<ul>
+<li><a href="https://support.google.com/webmasters/answer/139066?hl=en" target="_blank" rel="external">Google Webmasters guidelines: canonical URLs</a></li>
+<li><a href="https://support.google.com/webmasters/answer/44231?hl=en" target="_blank" rel="external">Google Webmasters guidelines: preferred domain</a></li>
+</ul>
+<h1 id="Part-2"><a href="#Part-2" class="headerlink" title="Part 2"></a>Part 2</h1><p><em>If you made it that far, you should check <a href="/blog/https-pitfalls-part2">part 2</a>,
+where I discuss: sending extraneous certificates; randomly sending wrong certificates; sending a certificate signed by a not widely-accepted root cert;
+and provide some links to helpful tools and external resources.</em></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://jakub.gieryluk.net/blog/blog/https-pitfalls/" data-id="cj9n9y9ua0000gg8lrynye3up" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/blog/tags/https/">https</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/blog/https-pitfalls-part2/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Real-world HTTPS deployment pitfalls (part 2)
+        
+      </div>
+    </a>
+  
+  
+</nav>
+
+  
+</article>
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/blog/tags/https/">https</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/blog/tags/https/" style="font-size: 10px;">https</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/blog/archives/2017/11/">November 2017</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/blog/https-pitfalls-part2/">Real-world HTTPS deployment pitfalls (part 2)</a>
+          </li>
+        
+          <li>
+            <a href="/blog/https-pitfalls/">Real-world HTTPS deployment pitfalls (part 1)</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2017 J.G.<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/blog/" class="mobile-nav-link">Home</a>
+  
+    <a href="/blog/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  <link rel="stylesheet" href="/blog/fancybox/jquery.fancybox.css">
+  <script src="/blog/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/blog/js/script.js"></script>
+
+  </div>
+</body>
+</html>

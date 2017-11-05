@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>Jakub&#39;s dev blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta property="og:type" content="website">
+<meta property="og:title" content="Jakub's dev blog">
+<meta property="og:url" content="https://jakub.gieryluk.net/blog/index.html">
+<meta property="og:site_name" content="Jakub's dev blog">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Jakub's dev blog">
+  
+    <link rel="alternate" href="/atom.xml" title="Jakub&#39;s dev blog" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  
+    <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  
+  <link rel="stylesheet" href="/blog/css/style.css">
+  
+
+</head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/blog/" id="logo">Jakub&#39;s dev blog</a>
+      </h1>
+      
+        <h2 id="subtitle-wrap">
+          <a href="/blog/" id="subtitle">web, android, git, https and other stuff</a>
+        </h2>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/blog/">Home</a>
+        
+          <a class="main-nav-link" href="/blog/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://jakub.gieryluk.net/blog"></form>
+      </div>
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main">
+  
+    <article id="post-https-pitfalls-part2" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/blog/https-pitfalls-part2/" class="article-date">
+  <time datetime="2017-11-05T20:00:00.000Z" itemprop="datePublished">2017-11-05</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/blog/https-pitfalls-part2/">Real-world HTTPS deployment pitfalls (part 2)</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p><em>This is part 2 of the blog post.
+For part 1, see <a href="/blog/https-pitfalls">here</a>,
+where I discuss: how not to overlook an expiring cert; how not to shoot yourself in foot with HSTS; a case of forgotten “nowww”;
+why you should always send intermediate certificates; and TLS 1.2 migration considerations if you support Android KitKat.</em></p>
+<h1 id="Extraneous-certificates"><a href="#Extraneous-certificates" class="headerlink" title="Extraneous certificates"></a>Extraneous certificates</h1><p><em>TL;DR: Save yourself some bandwidth, and improve initial render time, by not sending root certificate from the server.</em></p>
+<p>This is technically not a huge problem, but extraneous certificates bloat each new TLS connection,
+and are an equivalent of sending unoptimized JPEGs full of metadata.</p>
+<img src="/blog/https-pitfalls-part2/root-cert-sent-by-server.png" alt="Root cert sent by server" title="Root cert sent by server">
+<p>Since a TLS handshake is the very first thing happening when connecting to a domain over HTTPS,
+by sending unnecessary data at this stage, you’re increasing initial render time for all users
+(particularly the ones with poor connections and far away from your edge servers).</p>
+<p><strong>Every compliant browser will ignore a self-signed root cert at the end of the chain:</strong>
+if the browser has that root cert in its store, the TLS validation will succeed,
+and if it doesn’t have that cert, it will fail.
+Contrary to intermediate certs, which for robustness should always be sent,
+there’s no point of sending the root cert.</p>
+<h1 id="Serving-multiple-certificates-one-of-which-is-wrong"><a href="#Serving-multiple-certificates-one-of-which-is-wrong" class="headerlink" title="Serving multiple certificates, one of which is wrong"></a>Serving multiple certificates, one of which is wrong</h1><p>This is a strange case of server misconfiguration, but I discovered it happening
+recently to one of our partners.</p>
+<p>Initially it seemed like things worked correctly most of the time, but sometimes,
+regardless of the browser and operating system (Windows, iOS, Android), the TLS connection would fail.</p>
+<img src="/blog/https-pitfalls-part2/two-certs-one-invalid.png" alt="Two certificates" title="Two certificates">
+<p>When checked in SSL Labs, it showed two different certificates returned by the server:</p>
+<img src="/blog/https-pitfalls-part2/two-certs.png" alt="Two certificates" title="Two certificates">
+<p>But <em>what does it mean that the server returns two certificates</em>?
+How is this technically possible? Is the problem on the browser side or server
+side?</p>
+<p>I was confused by that, so I reached to Ivan Ristić from SSL Labs who explained (thanks!)
+that SSL Labs does multiple connections during the test, and collects all the
+server certs it encounters. The server <em>can only return one <strong>server certificate</strong>
+at a time</em> (though it may return a different one on each connection attempt) –
+and in addition, it may return a “bag of certs” containing intermediate certs,
+to help the client to perform the validation of the chain of trust.</p>
+<p>To inspect the issue more closely, I enabled Fiddler, configured it temporarily to ignore certificate
+errors, and put a few lines of Fiddler script to log the details of the certificate
+in the “comments” column, and highlight it in the session list if the observed cert was wrong.</p>
+<pre><code>static function onEvalCert(o: Object, e: ValidateServerCertificateEventArgs)
+{
+  try
+  {
+    var X2: System.Security.Cryptography.X509Certificates.X509Certificate2 =
+      new System.Security.Cryptography.X509Certificates.X509Certificate2(e.ServerCertificate);
+
+    if( X2.ToString().Contains(&quot;azure&quot;) ) {
+      e.Session[&quot;ui-backcolor&quot;] = &quot;darkred&quot;;
+      e.Session[&quot;ui-color&quot;] = &quot;white&quot;;
+    }
+    e.Session[&quot;ui-Comments&quot;] = X2.ToString();
+    e.Session.RefreshUI();
+  }
+  catch (ex)
+  {
+    FiddlerApplication.Log.LogFormat(&quot;Failed to evaluate certificate: {0}&quot;, ex.Message);
+  }
+}
+
+static function OnBoot() {
+  FiddlerApplication.add_OnValidateServerCertificate(onEvalCert);
+}
+</code></pre><p>Then I opened <code>/favicon.ico</code> URL of the server in the browser, and hit <code>F5</code> a number of times.</p>
+<p>After this test, I realized that in fact the TLS connection failed
+almost randomly with 50-50 chance, as you can see in the screenshot below:</p>
+<img src="/blog/https-pitfalls-part2/fiddler-azure.png" alt="Random certificates returned by Azure - Fiddler" title="Random certificates returned by Azure - Fiddler">
+<p>It turned out the Azure deployment of our partner was misconfigured and the server
+was sometimes wrongly sending a server certificate of Azure, instead of that of the appropriate customer domain
+(unfortunately, I don’t know more details of what kind of misconfiguration it was).</p>
+<h1 id="Serving-certificate-signed-only-by-a-niche-or-a-very-new-root-cert"><a href="#Serving-certificate-signed-only-by-a-niche-or-a-very-new-root-cert" class="headerlink" title="Serving certificate signed only by a niche or a very new root cert"></a>Serving certificate signed only by a niche or a very new root cert</h1><p>This is something that most likely won’t affect you if you obtain your certificates from any  major CA, but I decided to put it here for completeness, as I learned about it while investigating an issue of incomplete chain mentioned earlier.</p>
+<p>All the browsers and operating systems have <em>loads</em> of root certs in their stores, <em>but those stores are not equal.</em> <strong>Depending on the OS, browser, device vendor, and even country when the device is sold, there might be slight variations in cert store contents.</strong> (You might want to double check that topic if you do a truly worldwide business and target Asian markets for example.)</p>
+<p>There’s also variation in time: <strong>a device with an operating system from 2009 most likely will not have a root cert issued in 2010!</strong></p>
+<p>Typically the leaf certs are short-lived (months/years), and root certs are long-lived (years/decades), but the issue still holds. <strong>If you need to support very old Windows or Android</strong>, double check that your cert has been signed with an old enough cert (typically the CAs will do it for you - if they use a very new cert, they will also cross-sign using an older cert).</p>
+<p>How can you verify cert’s details? The easiest way is to obtain its fingerprint (hash)…</p>
+<img src="/blog/https-pitfalls-part2/very-new-root-cert.png" alt="Root cert sent by server" title="Root cert sent by server">
+<p>…and then use it in your favorite search engine, which will lead you to a <a href="https://www.censys.io/certificates/52f0e1c4e58ec629291b60317f074671b85d7ea80d5b07273463534b32b40234" target="_blank" rel="external">Censys cert viewer</a>:</p>
+<img src="/blog/https-pitfalls-part2/comodo-2010-cert.png" alt="Root cert sent by server" title="Root cert sent by server">
+<p>The example above is a popular Comodo cert issued in 2010. (Note this does not mean
+it was immediately picked up by the browser vendors on day one after issuance).
+<strong>This particular cert is known to not be present in Android &lt; 5.1.</strong>, nor in Firefox &lt; 36.
+However, when Comodo signs your certs with that cert, it also cross-signs it (at least for now)
+with an older cert that is available on older devices, so generally you don’t have to worry about it.</p>
+<h1 id="Assumming-your-once-configured-HTTPS-will-work-forever"><a href="#Assumming-your-once-configured-HTTPS-will-work-forever" class="headerlink" title="Assumming your once-configured HTTPS will work forever"></a>Assumming your once-configured HTTPS will work forever</h1><p>HTTPS is a moving target. Vulnerabilities in crypto algorithms and implementations are
+found each year as the research and hardware advance, and hence you will need to reconfigure
+your server periodically to avoid using deprecated crypto.</p>
+<p>On the other hand, <a href="https://www.chromium.org/Home/chromium-security/root-ca-policy" target="_blank" rel="external">various CAs have been compromised in the past</a>,
+and in response, browser vendors changed the treatment of the certs issued by those CAs
+(either lowering or fully revoking trust in those CAs); upcoming version of Chrome <a href="https://groups.google.com/a/chromium.org/d/msg/blink-dev/eUAKwjihhBs/El1mH8S6AwAJ" target="_blank" rel="external">will stop trusting certain old Symantec-issued certificates</a> way before their original expiration date.
+ Also, there were
+<a href="https://www.chromium.org/developers/androidwebview/webview-ct-bug" target="_blank" rel="external">software bugs related to handling of misbehaving CAs</a>
+which made HTTPS connections wrongly fail if the site was using a Symantec-issued cert.</p>
+<p>Keep yourself up-to-date with the news (you may want to follow <a href="https://twitter.com/sleevi_" target="_blank" rel="external">@sleevi_</a> on Twitter).
+Avoid using certificates from certificate authorities that have a long track of misbehaviors and not following best industry practices - or at least be more vigilant in such case.</p>
+<p><strong>Keep in mind that each HTTPS cert renewal is a potentially breaking change, and treat it as such - put the QA in the loop for a quick sanity.</strong></p>
+<p>Use Chrome Canary and Firefox Nightly to learn about breaking changes before they reach the wider audience.</p>
+<h1 id="Additional-Resources"><a href="#Additional-Resources" class="headerlink" title="Additional Resources"></a>Additional Resources</h1><h2 id="Tools"><a href="#Tools" class="headerlink" title="Tools"></a>Tools</h2><ul>
+<li><a href="https://www.ssllabs.com/ssltest/analyze.html?d=github.com" target="_blank" rel="external">SSL Labs - HTTPS server config linter</a></li>
+<li><a href="https://securityheaders.io/?q=https%3A%2F%2Fgithub.com%2F" target="_blank" rel="external">SecurityHeaders.io - HTTP security headers linter</a></li>
+<li><a href="https://observatory.mozilla.org/analyze.html?host=github.com" target="_blank" rel="external">Mozilla observatory - another HTTP(S) linter</a></li>
+<li><a href="https://www.facebook.com/notes/protect-the-graph/introducing-our-certificate-transparency-monitoring-tool/1811919779048165/" target="_blank" rel="external">Certificate Transparency Tool from Facebook (blog post)</a></li>
+<li><a href="https://certificatemonitor.org/" target="_blank" rel="external">Certificate Monitor - email notifications for expirating certs</a></li>
+<li><a href="https://badssl.com/" target="_blank" rel="external">BadSSL - page for testing browser behavior on misconfigured HTTPS pages</a></li>
+</ul>
+<h2 id="Blogs"><a href="#Blogs" class="headerlink" title="Blogs"></a>Blogs</h2><ul>
+<li><a href="https://textslashplain.com/tag/https/" target="_blank" rel="external">HTTPS-related posts on a blog of Eric Lawrence</a></li>
+<li><a href="https://scotthelme.co.uk/" target="_blank" rel="external">Blog of Scott Helme</a></li>
+</ul>
+<h2 id="Other"><a href="#Other" class="headerlink" title="Other"></a>Other</h2><ul>
+<li><a href="https://www.chromium.org/Home/chromium-security/root-ca-policy" target="_blank" rel="external">Chromium Root Certificate Policy</a></li>
+<li><a href="https://security.stackexchange.com/questions/tagged/tls?sort=votes&amp;pageSize=15" target="_blank" rel="external">TLS answers on Security.StackExchange</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy" target="_blank" rel="external">Content-Security-Policy</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/upgrade-insecure-requests" target="_blank" rel="external">Content-Security-Policy: upgrade-insecure-requests</a></li>
+</ul>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://jakub.gieryluk.net/blog/blog/https-pitfalls-part2/" data-id="cj9n9y9uf0001gg8l8u7yg1sb" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/blog/tags/https/">https</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-https-pitfalls" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/blog/https-pitfalls/" class="article-date">
+  <time datetime="2017-11-04T20:00:00.000Z" itemprop="datePublished">2017-11-04</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/blog/https-pitfalls/">Real-world HTTPS deployment pitfalls (part 1)</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>…or one year from life of a web/app developer, seeing broken HTTPS in the wild</p>
+<p>All the things written below actually happened to my team, other teams at my company, or our external partners!</p>
+<hr>
+<p><em>Who is this post for:</em> web &amp; app developers, devops, sysadmins; <strong>particularly if you’re working in a big company and roll out HTTPS on your own</strong></p>
+<p><em>Technical difficulty:</em> low / intermediate (you know what is HTTPS, a CA, a certificate)</p>
+<p><strong><em>TL;DR: if you have only 2 minutes now, go to <a href="https://www.ssllabs.com/ssltest/" target="_blank" rel="external">SSL Labs</a> and check your domain.
+If you see anything in red or orange, compare your results with major websites like Google, GitHub, Microsoft, Guardian etc.
+If the given problem is not present on any major site, but only on yours, it probably means you need to fix it NOW.</em></strong></p>
+<h1 id="Introductory-self-Q-amp-A"><a href="#Introductory-self-Q-amp-A" class="headerlink" title="Introductory self-Q&amp;A"></a>Introductory self-Q&amp;A</h1><p><em>“I’m a just a developer and HTTPS is a devops things, do I really need to read all of that?”</em></p>
+<p>If you’re a dev in a company migrating to HTTPS soon,
+or your newly created project will be using HTTPS, <em>this post is for you</em>.
+Even if your website is already in production, you may learn a thing or two.</p>
+<p>Your devops will put things in place, and stuff will <em>mostly work</em>,
+but they might not know all the arcane details of all web browsers,
+and all requirements for your product, and then it will be <em>you</em>
+who will have to debug stuff. So at least glance over the headlines and TL;DRs to get yourself familiar with common issues.</p>
+<p><em>“We have a staging environment, we’ll catch everything before long deploying to prod!”</em></p>
+<p><strong>Only as long as 1) your staging env has exactly the same HTTPS cert and
+config as production</strong> (in big companies, it might not be the case, due to domain name differences and internal
+policies), and 2) you <strong>test all possible browsers and operating systems</strong>
+(but it may still not be enough!)</p>
+<p><em>“Is it really that hard?”</em></p>
+<p>If you don’t want to break things for the end-users, it takes time.
+Have a look for example at <a href="https://www.theguardian.com/info/developer-blog/2016/nov/29/the-guardian-has-moved-to-https" target="_blank" rel="external">this blog from The Guardian</a>.</p>
+<p>I will try not to repeat too many obvious things in this guide. I assume you already know
+basic stuff about HTTPS from different sources.
+<strong>Instead I will point some things that might be easily overlooked, or not noticed at all
+if you’re (un)lucky - until you have an urgent issue in production.</strong>.</p>
+<h1 id="Forgetting-about-certificate-expiration"><a href="#Forgetting-about-certificate-expiration" class="headerlink" title="Forgetting about certificate expiration"></a>Forgetting about certificate expiration</h1><p><em>TL;DR: don’t rely only on a once-a-year email reminder</em></p>
+<p>I temporarily break my promise and start from trivial yet costly mistake, similar to forgetting to renew a domain, but it happens nonetheless. At least every few weeks I stumble upon a high profile page with expired cert, or a near-miss.</p>
+<p>Obviously you should have a well-defined process, with email reminder and someone responsible for taking the action, but…</p>
+<p>Apart from that, <strong>if you use Fiddler regularly, you can use <a href="https://gist.github.com/ericlaw1979/678ed408075da213f742" target="_blank" rel="external">a few lines of FiddlerScript</a> to highlight HTTPS sessions that are using soon-expiring certs</strong> <em>(thanks to Eric Lawrence for publishing it)</em>, so that the expiration catches your attention before it’s too late. You may want to customize it to only highlight sessions touching particular domain names of your interest:</p>
+<pre><code>if (e.Session.hostname.EndsWith(&quot;mydomain.net&quot;) ||
+    e.Session.hostname.EndsWith(&quot;mydomain.com&quot;)) {
+  e.Session[&quot;ui-backcolor&quot;] = &quot;red&quot;;
+  e.Session[&quot;ui-color&quot;] = &quot;white&quot;;
+}
+</code></pre><img src="/blog/https-pitfalls/fiddler-certs-expiring-in-30-days.png" alt="Certificates expiring in less than 30 days" title="Certificates expiring in less than 30 days">
+<p>Don’t wait to renew the certificate on the last possible day (in particular when it expires on Sunday!) to avoid putting unnecessary stress on your team.</p>
+<h1 id="Missing-intermediate-certificates"><a href="#Missing-intermediate-certificates" class="headerlink" title="Missing intermediate certificates"></a>Missing intermediate certificates</h1><p><em>TL;DR: run <a href="https://www.ssllabs.com/" target="_blank" rel="external">SSL Labs</a> check on your domain and if you see “Extra download” in certification path, <strong>go now and fix it</strong> and come back when done!</em></p>
+<p>First, quick primer on how CA (Certificate Authority) system works. Let’s use GitHub as an example.</p>
+<p>In the image below you see a certificate chain for github.com. There are 3 certs in play:</p>
+<img src="/blog/https-pitfalls/github-cert.png" alt="Missing intermediate certificates" title="Missing intermediate certificates">
+<ol>
+<li>Server cert (leaf): This is GitHub’s public cert that they use to secure the TLS session with the user’s browser.</li>
+<li>Intermediate cert of DigiCert, a Certificate Authority which signed (i.e. verified the authenticity) of the cert from GitHub (cert #1).</li>
+<li>Root cert (high-trust cert) of DigiCert, which signed (i.e. verified the authencity) of the other cert from DigiCert (cert #2). This cert, like all the root certs, is self-signed by the issuer; all the root certs are self-signed by definition.</li>
+</ol>
+<p>Web browsers and operating systems typically ship with <em>dozens and dozens</em> of root certs embedded in their CA stores. When a server administrator wants to obtain a new certificate, the Certificate Authority, for operational reasons, will not sign it with a root cert directly, but instead it will do it with an <em>intermediate cert</em>. Anything in the chain between leaf cert (yourdomain.com) and the root cert is an intermediate cert. In a typical situation, there are 1 or 2 intermediate certs.</p>
+<p>To verify the website’s cert, the browser needs to have <em>a full chain of certification</em>, to verify trust of each link of the chain. The leaf cert is always sent by the server, the root certs are available in the browser, but where does the browser get the intermediate certificates from? There are two options:</p>
+<ol>
+<li>either <em>server sends</em> all the intermediate certs,</li>
+<li>or the browser needs to get them from <em>somewhere</em>.</li>
+</ol>
+<p>The screenshot above shows GitHub properly sending the intermediate cert. <strong>But what happens in the other case? It’s implementation-specific, depends on the browser and platform:</strong></p>
+<ul>
+<li>if the browser happens to have an intermediate cert cached locally, because some other website that the user has visited served it, it will be reused;</li>
+<li>if the intermediate cert is not cached, some browsers will fetch it, but some won’t; <strong>in particular, Android WebView and all versions of Firefox do not fetch any missing certs!</strong></li>
+</ul>
+<p>See an example of <a href="https://incomplete-chain.badssl.com/" target="_blank" rel="external">a misconfigured server</a> below:</p>
+<img src="/blog/https-pitfalls/extra-downloads.png" alt="Missing intermediate certificates" title="Missing intermediate certificates">
+<p>This servers’s cert can be verified via two certification paths (because the intermediary cert has been cross-signed by two different certs), but unfortunately none of paths can be reliably resolved by the browser without an extra download.</p>
+<p><strong>If you see “extra download” in SSL Labs, go now and fix it!</strong> Your page might be randomly not working for many of your users (but it might be sporadic enough that you don’t get any reports).</p>
+<p>See also:</p>
+<ul>
+<li><a href="https://www.thesslstore.com/blog/aia-fetching/" target="_blank" rel="external">AIA fetching of missing intermediate certs</a></li>
+<li><a href="https://bugzilla.mozilla.org/show_bug.cgi?id=399324" target="_blank" rel="external">Firefox bug: Fetch missing intermediate certs</a></li>
+</ul>
+<h1 id="TLS-1-2-and-old-Androids"><a href="#TLS-1-2-and-old-Androids" class="headerlink" title="TLS 1.2 and old Androids"></a>TLS 1.2 and old Androids</h1><p><em>TL;DR: make sure you don’t lose dozens of thousands of users before you roll out TLS 1.2</em></p>
+<p>HTTPS deployment is a fine balance between security and backward compatibility.
+The gold standard in 2017 is TLS 1.2, but it’s not supported by old operating systems and browsers
+(Internet Explorer on Windows XP, and very old Androids).</p>
+<p>Supporting outdated browsers means supporting insecure crypto and lowering security for everyone else.
+While most of the Android developers have stopped supporting pre-KitKat devices long time ago,
+there’s still a significant market share of KitKat (Android 4.4). According to <a href="https://developer.android.com/about/dashboards/index.html" target="_blank" rel="external">Android dashboard</a>,
+as of July 2017, <strong>17% of Android users still use KitKat</strong>. However, you should check the stats in Play Store console
+for the active users of your own app, and the stats there might be way different
+(as the variation between the countries is big).</p>
+<p>The interesting thing about KitKat is that while it has the capability to support TLS 1.2,
+<strong>it’s by default switched off</strong>, and while some vendors do support it, many do not.
+(There are even <a href="https://github.com/square/okhttp/issues/2372#issuecomment-244807676" target="_blank" rel="external">reports</a>
+of Samsung devices with Android 5.0 not supporting TLS 1.2, which in theory should not happen).</p>
+<p>Due to PCI-DSS compliance, you might be forced to migrate your server to TLS 1.2, but you should
+<strong>double check your user base statistics before</strong>, to avoid recklessly cutting out a big portion
+of the market from your services.</p>
+<p>The platform team in my company was <em>very</em> keen in late 2016 on migrating to TLS 1.2 (and removing
+support for TLS 1.1 and 1.0), but after some discussions we’ve decided to postpone it.
+We have reevaluated this summer, and we are finally planning to drop KitKat support and roll out
+TLS 1.2 in the coming weeks (end of 2017).</p>
+<h1 id="Using-HSTS-too-aggressively"><a href="#Using-HSTS-too-aggressively" class="headerlink" title="Using HSTS too aggressively"></a>Using HSTS too aggressively</h1><p><em>TL;DR: only roll out HSTS when everything else’s been checked and working well. Serve small <code>max-age</code> initially and increase as you gain confidence - or prepare to serve <code>max-age=0</code> in case of problems.</em></p>
+<p><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security" target="_blank" rel="external">HSTS</a> is a very useful security header which tells the browser to “remember” to always load all URLs from a given domain over HTTPS, even if HTTP URLs are encountered, for a given period of time described by <code>max-age</code> field in the header value. In other words, it prevents you from visiting unsecured HTTP pages.</p>
+<p><strong>Usually this is good, but obviously not when HTTPS version is not working properly,</strong> and the user really wants to see the HTTP version.</p>
+<p><em>Story time:</em> We have an on-site JIRA instance in my company; put in place several years ago over HTTP, but work began lately on serving JIRA and everything else over HTTPS.</p>
+<p>At some point, the implementation team enabled an http-&gt;https redirect and an HSTS header. For some reason though, it turned out some parts of the page were not working over https (not that obvious to diagnose for the end user), so the force-https config was disabled, and the recommendation from JIRA support team was to use http URLs.</p>
+<p>But, with HSTS it is not that easy: if you ever visited https version before, when visiting http URL later, you were redirected back to https page (the whole point of HSTS after all!), and  clearing standard browsing data didn’t help.</p>
+<p><strong>There are two solutions if your users get trapped by that problem:</strong></p>
+<ul>
+<li>You could serve <code>max-age=0</code> value for HSTS header which tells the browser to discard all HSTS data it has for the serving domain <em>(but this is taken into account by the browser only when served over HTTPS - as any other HSTS header value)</em>.</li>
+<li>Users may clear HSTS cache of the browser. Not very easy to do, and not user friendly; typically hidden in browser internals, for example: <code>chrome://net-internals/#hsts</code> in Chrome.</li>
+</ul>
+<p><strong>Obviously, the best solution is to be cautious and only implement HSTS when everything else was verified; also, put a small <code>max-age</code> (a few hours, a few days) first, and gradually increase when no problems are found.</strong></p>
+<p>Read more:</p>
+<ul>
+<li><a href="https://blog.qualys.com/securitylabs/2016/03/28/the-importance-of-a-proper-http-strict-transport-security-implementation-on-your-web-server" target="_blank" rel="external">Blog post on HSTS on Qualys Blog</a></li>
+</ul>
+<h1 id="Forgetting-about-www-nowww-when-deploying-HTTPS-CDN-or-security-proxy"><a href="#Forgetting-about-www-nowww-when-deploying-HTTPS-CDN-or-security-proxy" class="headerlink" title="Forgetting about www/nowww when deploying HTTPS, CDN, or security proxy"></a>Forgetting about www/nowww when deploying HTTPS, CDN, or security proxy</h1><p><em>TL;DR: do not forget about nowww. Make sure it works over http and redirects to https.</em></p>
+<p>Typically, your website has a canonical URL of <code>www.example.com</code> or <code>example.com</code>, so you have 2 entry points. Most likely you serve a redirect from one to the other, to avoid duplicated content.</p>
+<p>However with HTTPS in the game, each of the two is accessible either via http or https, <em>so you have 4 entry points total</em>.</p>
+<p>If you forget about your nowww domain, you might end up in the following situation:</p>
+<ol>
+<li>User types “example.com” in URL bar</li>
+<li>The server responds with a redirect to “<a href="https://example.com" target="_blank" rel="external">https://example.com</a>“</li>
+<li>Your HTTPS cert is not valid for nowww domain -&gt; <strong>scary warning, user runs away.</strong></li>
+</ol>
+<p>Another thing that could happen is that your traffic to nowww domain won’t be resolved at all and user will think that your page is down.</p>
+<p>The problem is so prevalent that modern browsers have some built-in magic to probe www domain in case of nowww not working, but as with any error recovery mechanism, it’s better to not rely on it.</p>
+<p>Actions:</p>
+<p>1) <strong>Make sure to choose one canonical entry point</strong> (say, <code>https://www.example.com</code>) and put redirects in place in your webserver’s config for the 3 remaining ones:</p>
+<ul>
+<li><a href="http://www.example.com" target="_blank" rel="external">http://www.example.com</a> -&gt; <a href="https://www.example.com" target="_blank" rel="external">https://www.example.com</a></li>
+<li><a href="http://example.com" target="_blank" rel="external">http://example.com</a> -&gt; <a href="https://www.example.com" target="_blank" rel="external">https://www.example.com</a></li>
+<li><a href="https://example.com" target="_blank" rel="external">https://example.com</a> -&gt; <a href="https://www.example.com" target="_blank" rel="external">https://www.example.com</a></li>
+</ul>
+<p>(You might want to write a simple bot that checks all of this each night and alerts you if a redirection stops working. Subsequent configuration changes, perhaps done by external teams – not unheard of in corporate environments – might break that redirection without anyone noticing.)</p>
+<p>2) Since <code>example.com</code> and <code>www.example.com</code> are different origins, a regular TLS cert with just one explicit domain name won’t work for both. <strong>You need a cert with SAN (Subject Alternative Name) matching both, for example: <code>*.example.com example.com</code> or <code>www.example.com example.com</code></strong></p>
+<p>3) SEO tip: Generate <code>&lt;link rel=&quot;canonical&quot; href=&quot;https://...&quot;&gt;</code> in the <code>&lt;head&gt;</code> of your HTML responses to make deduplication work easier for web crawlers.</p>
+<p>See also the following support entries from Google Webmasters:</p>
+<ul>
+<li><a href="https://support.google.com/webmasters/answer/139066?hl=en" target="_blank" rel="external">Google Webmasters guidelines: canonical URLs</a></li>
+<li><a href="https://support.google.com/webmasters/answer/44231?hl=en" target="_blank" rel="external">Google Webmasters guidelines: preferred domain</a></li>
+</ul>
+<h1 id="Part-2"><a href="#Part-2" class="headerlink" title="Part 2"></a>Part 2</h1><p><em>If you made it that far, you should check <a href="/blog/https-pitfalls-part2">part 2</a>,
+where I discuss: sending extraneous certificates; randomly sending wrong certificates; sending a certificate signed by a not widely-accepted root cert;
+and provide some links to helpful tools and external resources.</em></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://jakub.gieryluk.net/blog/blog/https-pitfalls/" data-id="cj9n9y9ua0000gg8lrynye3up" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/blog/tags/https/">https</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/blog/tags/https/">https</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/blog/tags/https/" style="font-size: 10px;">https</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/blog/archives/2017/11/">November 2017</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/blog/https-pitfalls-part2/">Real-world HTTPS deployment pitfalls (part 2)</a>
+          </li>
+        
+          <li>
+            <a href="/blog/https-pitfalls/">Real-world HTTPS deployment pitfalls (part 1)</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2017 J.G.<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/blog/" class="mobile-nav-link">Home</a>
+  
+    <a href="/blog/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  <link rel="stylesheet" href="/blog/fancybox/jquery.fancybox.css">
+  <script src="/blog/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/blog/js/script.js"></script>
+
+  </div>
+</body>
+</html>
