@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>Reusing software translations between Android, iOS and web | Jakub&#39;s dev blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Software translation and localization is a difficult subject. It seems deceptively simple, but as a Polish proverb says, “the farther into the forest, the more trees”. There’s a big number of people i">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Reusing software translations between Android, iOS and web">
+<meta property="og:url" content="https://jakub.gieryluk.net/blog/reusing-software-translations-ios-android-web/index.html">
+<meta property="og:site_name" content="Jakub's dev blog">
+<meta property="og:description" content="Software translation and localization is a difficult subject. It seems deceptively simple, but as a Polish proverb says, “the farther into the forest, the more trees”. There’s a big number of people i">
+<meta property="og:updated_time" content="2017-11-11T17:01:01.598Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Reusing software translations between Android, iOS and web">
+<meta name="twitter:description" content="Software translation and localization is a difficult subject. It seems deceptively simple, but as a Polish proverb says, “the farther into the forest, the more trees”. There’s a big number of people i">
+  
+    <link rel="alternate" href="/atom.xml" title="Jakub&#39;s dev blog" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  <link rel="stylesheet" href="/blog/css/style.css">
+  
+
+</head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/blog/" id="logo">Jakub&#39;s dev blog</a>
+      </h1>
+      
+        <h2 id="subtitle-wrap">
+          <a href="/blog/" id="subtitle">web, android, git, https and other stuff</a>
+        </h2>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/blog/">Home</a>
+        
+          <a class="main-nav-link" href="/blog/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://jakub.gieryluk.net/blog"></form>
+      </div>
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main"><article id="post-reusing-software-translations-ios-android-web" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/blog/reusing-software-translations-ios-android-web/" class="article-date">
+  <time datetime="2017-11-11T16:15:00.000Z" itemprop="datePublished">2017-11-11</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Reusing software translations between Android, iOS and web
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>Software translation and localization is a difficult subject. It seems deceptively simple, but as a Polish proverb says, “the farther into the forest, the more trees”. There’s a big number of people involved (developers, product managers, translation agency, translators) and it may take many iterations to obtain good results (this is a subject for a whole separate blog post).</p>
+<p>Whereas there are many resources in the web on the software translation best practices, <strong>there are very few about how to make multiple projects in disparate technologies share the translations</strong>. Translations reuse is not straightforward, because each software platform and framework has a different attitude to the problem; but since the translation agencies very often simply do not do good work, <strong>it’s important to aim for high translation reuse once good translations are available.</strong></p>
+<p>In this blog post, I will write about the task I had last month, which was <strong>to localize an Android app and reuse as much translations as possible from existing iOS and web apps.</strong> I will discuss the pain points to be aware of, and provide some solutions - but there is no silver bullet.</p>
+<p><em>This post will cover only the “string translation” part of the bigger “software localization” process, which includes also accommodating date/time formats and other things.</em></p>
+<h1 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h1><p>There are a lot of small things which you can do to improve translation reuse, but they’d have to be applied
+from the beginning of the project.</p>
+<p><strong>If you happen to have one product ready and translated, whereas the other one needs translations,
+I advise you to sign up to <a href="https://poeditor.com" target="_blank" rel="external">POEditor</a>.</strong> It is a very good product and you can tell the guys
+know what they’re doing. During a free trial, you can <strong>import the existing translation from one product, and reuse
+them in another product thanks for the translation memory</strong>, with very low effort. It supports XLIFF, Android XML, JSON and a few other file formats. The drawbacks are that its TM only finds exact matches, and after the trial, the pricing ain’t cheap
+if you have many strings and languages (that’s one of the reasons we didn’t buy the subscription).</p>
+<p>In order to achieve good results though, it’s worth if you read on, to avoid some problems which impede string reuse.</p>
+<p>Contrary, <strong>if you’re just starting with your projects</strong>, I advise you to:</p>
+<ul>
+<li>follow this guideline, and set up some processes to allow translation units reuse in the future,</li>
+<li><strong>translate only one app first</strong>, and iterate on the translations until they’re good enough,</li>
+<li>sign up for POEditor or find other translation memory tool, and import the translations to the remaining products.</li>
+</ul>
+<h1 id="Best-practices"><a href="#Best-practices" class="headerlink" title="Best practices"></a>Best practices</h1><p>First I will start with two (of the many) best practices (BP) of software translations.
+I will refer to a string to be translated as a “translation unit”.</p>
+<h2 id="Best-practice-1-don’t-concatenate-strings-and-variables-use-a-template-string-with-placeholder"><a href="#Best-practice-1-don’t-concatenate-strings-and-variables-use-a-template-string-with-placeholder" class="headerlink" title="Best practice 1: don’t concatenate strings and variables, use a template string with placeholder"></a>Best practice 1: don’t concatenate strings and variables, use a template string with placeholder</h2><blockquote>
+<p>When dynamic data has to be put in the UI string, always use translations unit
+with a placeholder, like <code>Delete %s from contact list?</code>, and replace the placeholder in the code.</p>
+</blockquote>
+<p>Each language has a well-defined order of the sentence. In German, verbs often go at the end
+of the sentence. Concatenating strings doesn’t make sense; whole sentence has to be translated,
+and placeholder correctly located by the translator.</p>
+<h2 id="Best-practice-2-always-include-punctuation-in-the-translation-unit"><a href="#Best-practice-2-always-include-punctuation-in-the-translation-unit" class="headerlink" title="Best practice 2: always include punctuation in the translation unit"></a>Best practice 2: always include punctuation in the translation unit</h2><blockquote>
+<p>If the UI string looks like <code>Foobar:</code>, the translation unit must be <code>Foobar:</code>, not <code>Foobar</code>.</p>
+</blockquote>
+<p>You might think you could just add the colon in the code or UI template, but it’s not correct.
+The grammar rules of French language say that characters like <code>:</code>, <code>;</code>, <code>!</code>, <code>?</code> must be preceded
+by a single whitespace. So the French translation of <code>Foobar:</code> will be <code>Foobar :</code>.</p>
+<h1 id="Real-life"><a href="#Real-life" class="headerlink" title="Real life"></a>Real life</h1><p>An important realization is that software translation is not a one-off thing, but a continuous process, which consists of:</p>
+<ul>
+<li>Initial translation,</li>
+<li>Adding new strings (and hence the new translations),</li>
+<li>Updating existing strings (and hence also the translations).</li>
+</ul>
+<p>This alone makes it tricky and complex to keep things in sync, but translation reuse is more
+difficult than it should be mostly due to a different way each major platform
+handles it.</p>
+<h2 id="Different-conceptual-attitude-on-iOS-and-Android"><a href="#Different-conceptual-attitude-on-iOS-and-Android" class="headerlink" title="Different conceptual attitude on iOS and Android"></a>Different conceptual attitude on iOS and Android</h2><p>In <strong>Android</strong>, a standard is to externalize the translation units into <code>strings.xml</code> file in
+an appropriate subfolder of the project, one per language (including the primary language).</p>
+<p>On <strong>the web</strong>, the standard file format for data is now JSON, so naturally it’s also common to use it
+for the translations (at least in JavaScript-powered Single-Page Applications).
+Projects like <code>angular-translate</code> popularized this approach: have one JSON
+per language (including the primary language), loaded dynamically at runtime, and then passed to
+the framework to populate the strings in the UI. From translation point of view, this is quite
+similar to the Android approach, though there are some technical differences.</p>
+<p>In <strong>iOS</strong>, the approach is quite different. A standard practice is that you actually DO hardcode
+the strings in the code, in the primary language of the app, but you wrap them in a <code>NSLocalizedString</code> call.
+Then, you can use Xcode to analyze the project,
+and generate a set of XLIFF files for the translation agency (one per each language, except
+the primary language), and when you get the translations back, you import them to the project to
+a set of <code>Localizable.strings</code> files.</p>
+<p>At the very beginning of the project, I was thinking about having a shared source-of-truth
+git repo with all the strings in the primary language, their translations, and some tooling
+on top of that, which would build platform-specific
+files; but due to the complexity coming from the fact of iOS being much different than the rest,
+and the apps evolving at different pace (which could turn problematic at some point - though could be solved with git branches), this idea was abandoned.</p>
+<h1 id="Enter-the-translation-memory"><a href="#Enter-the-translation-memory" class="headerlink" title="Enter the translation memory"></a>Enter the translation memory</h1><p>“Translation memory” (TM) is an opposite approach to “shared source-of-truth”: each platform remains independent,
+but it can <strong>pull translations from the shared pool</strong>. This is something that professional translation agencies use,
+but you can also find some free software doing that, or roll your own.</p>
+<p>The way TMs work is simple: you push your translation units and respective translations to it,
+and then when you need to translate the same or similar translation unit from a different project,
+the TM finds a match.</p>
+<p>Basic TMs can only find exact matches; more advanced TMs can find fuzzy matches, when the inputs vary only slightly.
+The problem is that there can be many small differences in the translation units due to a number of reasons I will present below.</p>
+<h1 id="Small-but-important-impediments-to-translation-unit-reuse"><a href="#Small-but-important-impediments-to-translation-unit-reuse" class="headerlink" title="Small but important impediments to translation unit reuse"></a>Small but important impediments to translation unit reuse</h1><h2 id="Slightly-different-inputs"><a href="#Slightly-different-inputs" class="headerlink" title="Slightly different inputs"></a>Slightly different inputs</h2><p>Mostly due to punctuation differences (<code>!</code>, <code>:</code> etc.), as previously explained in BP2:</p>
+<blockquote>
+<p><code>Book now</code> vs <code>Book now!</code> are different translation units.</p>
+</blockquote>
+<p>This can also happen due to:</p>
+<ul>
+<li>extra whitespace,</li>
+<li>different whitespace (regular vs non-breaking whitespace),</li>
+<li>differing apostrophes and quotes (regular ASCII vs. fancy ones).</li>
+</ul>
+<p>Good TMs can handle it and find a fuzzy match,
+but it still might require manual intervention to align the translations.</p>
+<p>Regarding the apostrophes and quotes, it might be interesting to have tooling in place
+to normalize them; for example to replace the ASCII ones with “fancy” ones (U+2019 right single quotation mark, U+201C and U+201D left/right double quotation mark). This has a few advantages:</p>
+<ul>
+<li>the fancy apostrophes and quotes don’t need to be <code>\</code>-escaped on Android,</li>
+<li>different translators throughout the time might use one or the other, which could lead to UI inconsistencies,</li>
+<li>guaranteed consistency between the platforms.</li>
+</ul>
+<p>Non-breaking space (U+00A0) looks like a regular space in any code editor, hence it’s difficult to spot - beware.</p>
+<p>Side rant: Translation agencies often use TMs with fuzzy matching, but do not verify the result.
+Hence <code>Foobar</code> can be translated to <code>Foobar.</code> which feels very wrong if it’s a UI string of a button.
+You might need some tooling to check that, or make sure your translation agency verifies that. Or both.
+I wrote some tools to do a few simple checks like that on <code>strings.xml</code>, and I am planning open source them soon.
+Once done, I will update this article, so feel free to bookmark this URL and come back later if interested.</p>
+<h2 id="Different-casing"><a href="#Different-casing" class="headerlink" title="Different casing"></a>Different casing</h2><blockquote>
+<p><code>Book now!</code> and <code>BOOK NOW!</code> are different translation units.</p>
+</blockquote>
+<p>Again, the TM can find it, but it’s not ideal to have a mismatch in each platform.</p>
+<p>Which one is better? The opinions are split. Non-uppercased version is theoretically
+better, because it’s trivial to uppercase if needed, whereas reverse is not true:
+you can not easily lowercase a string in a correct way
+(particularly in German, where nouns are always
+capitalized). However, there are reports stating that
+<a href="https://blog.workable.com/recyclerview-achieved-60-fps-workables-android-app-tips/" target="_blank" rel="external">uppercasing at runtime in Android can lead to dropped frames while scrolling</a>, so you need to decide
+yourself which trade-off to make.</p>
+<h2 id="Placeholders"><a href="#Placeholders" class="headerlink" title="Placeholders"></a>Placeholders</h2><p>As stated in BP1, you should use placeholders. You do? Good.</p>
+<p><strong>The strings with placeholders are most difficult to translate, hence the most important to reuse
+if they are already translated</strong>, but it would be too easy if it was straightforward.</p>
+<p>Android uses placeholders like <code>%d</code>, <code>%s</code>, <code>%1$s</code>, <code>%2$s</code>; iOS uses <code>%@</code>, <code>%1$@</code>, <code>%2$@</code>,
+and various 3rd-party libraries offer different syntaxes.</p>
+<p><strong>It might be reasonable to find a set of libraries (or write yourself if necessary)
+that will allow the exact same syntax for all platforms.</strong> Syntax from <a href="https://github.com/square/phrase" target="_blank" rel="external">Phrase</a>
+looks nice. However the problem is that in case of named placeholders, each team
+might use a different placeholder name and we’re in even worse position than before.</p>
+<p>Additionally, in Android’s <code>strings.xml</code> you can wrap your placeholder with an XLIFF
+tag to facilitate the work to a (knowledgeable) translator: <code>Book a flight to &lt;xliff:g example=&quot;London&quot;&gt;%s&lt;/xliff:g&gt;</code>,
+and those XLIFF tags will be discarded at compilation time. While in theory it sounds great, in practice
+it nearly guarantees that the translation memory won’t match this string with an existing string in its database.
+Yet another trade-off to make.</p>
+<h2 id="Plurals"><a href="#Plurals" class="headerlink" title="Plurals"></a>Plurals</h2><p>While it’s hard with placeholders, it’s even harder with plurals, because pluralization rules differ between each language,
+and of course each platform or library handles it differently.</p>
+<p><a href="https://developer.android.com/guide/topics/resources/string-resource.html#Plurals" target="_blank" rel="external">Android’s implementation</a> seems very good to me: one string per quantity-indicator, grouped together. Some libraries like <a href="https://messageformat.github.io" target="_blank" rel="external">messageformat</a> encode the quantity-selection logic into just one string, which in my opinion is not the most readable nor easiest for the translation agencies, but often they work the way they do due to technical limitations
+of their ecosystem.</p>
+<p>Translation reuse for plurals is hard to achieve. <strong>It’s probably just easiest to translate
+those separately on each platform,
+or to make UI decisions that remove the need for pluralization altogether.</strong></p>
+<h1 id="Process-related-impediments"><a href="#Process-related-impediments" class="headerlink" title="Process-related impediments"></a>Process-related impediments</h1><p>One non-obvious pain point we only learnt about at the last moment was a simple fact that <strong>the UI strings
+have diverged between the platforms</strong>.</p>
+<p>While we were working on the Android app, quite a few the UI strings in the iOS app have changed,
+but were not updated in the Android codebase. When it came to translating Android, it turned out
+that many strings were simply not there in the iOS app anymore, and it took a while to find the appropriate
+strings in the iOS app and update the Android sources.</p>
+<h1 id="Corollary"><a href="#Corollary" class="headerlink" title="Corollary"></a>Corollary</h1><p>Proper translation reuse is only possible with a strong cooperation from all the teams.
+<strong>In practice, this is hard to achieve.</strong> Aim for the best, but assume that it will just not happen, and you’ll achieve a reuse of something like 70-80%.</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://jakub.gieryluk.net/blog/blog/reusing-software-translations-ios-android-web/" data-id="cj9vj9qoi0003qs8ljbnzc2oy" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/blog/tags/i18n/">i18n</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/blog/tags/l10n/">l10n</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/blog/tags/software-translation/">software-translation</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/blog/https-pitfalls-part2/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Real-world HTTPS deployment pitfalls (part 2)</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/blog/tags/https/">https</a></li><li class="tag-list-item"><a class="tag-list-link" href="/blog/tags/i18n/">i18n</a></li><li class="tag-list-item"><a class="tag-list-link" href="/blog/tags/l10n/">l10n</a></li><li class="tag-list-item"><a class="tag-list-link" href="/blog/tags/software-translation/">software-translation</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/blog/tags/https/" style="font-size: 20px;">https</a> <a href="/blog/tags/i18n/" style="font-size: 10px;">i18n</a> <a href="/blog/tags/l10n/" style="font-size: 10px;">l10n</a> <a href="/blog/tags/software-translation/" style="font-size: 10px;">software-translation</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/blog/archives/2017/11/">November 2017</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/blog/reusing-software-translations-ios-android-web/">Reusing software translations between Android, iOS and web</a>
+          </li>
+        
+          <li>
+            <a href="/blog/https-pitfalls-part2/">Real-world HTTPS deployment pitfalls (part 2)</a>
+          </li>
+        
+          <li>
+            <a href="/blog/https-pitfalls/">Real-world HTTPS deployment pitfalls (part 1)</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2017 J.G.<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+  <script type="text/javascript" src="/ga.js"></script>
+</footer>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/blog/" class="mobile-nav-link">Home</a>
+  
+    <a href="/blog/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  <link rel="stylesheet" href="/blog/fancybox/jquery.fancybox.css">
+  <script src="/blog/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/blog/js/script.js"></script>
+
+  </div>
+</body>
+</html>
