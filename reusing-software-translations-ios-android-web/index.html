@@ -5,17 +5,17 @@
   
   <title>Reusing software translations between Android, iOS and web | Jakub&#39;s dev blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Software translation and localization is a difficult subject. It seems deceptively simple, but as a Polish proverb says, “the farther into the forest, the more trees”. There’s a big number of people i">
+  <meta name="description" content="TL;DR: There are a lot of small things which you can do to improve translation reuse, but they’d have to be applied from the beginning of the project. If you happen to have one product ready and trans">
 <meta name="keywords" content="i18n,l10n,software-translation">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Reusing software translations between Android, iOS and web">
 <meta property="og:url" content="https://jakub.gieryluk.net/blog/reusing-software-translations-ios-android-web/">
 <meta property="og:site_name" content="Jakub's dev blog">
-<meta property="og:description" content="Software translation and localization is a difficult subject. It seems deceptively simple, but as a Polish proverb says, “the farther into the forest, the more trees”. There’s a big number of people i">
-<meta property="og:updated_time" content="2017-11-12T14:08:08.697Z">
+<meta property="og:description" content="TL;DR: There are a lot of small things which you can do to improve translation reuse, but they’d have to be applied from the beginning of the project. If you happen to have one product ready and trans">
+<meta property="og:updated_time" content="2017-11-12T14:56:24.178Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Reusing software translations between Android, iOS and web">
-<meta name="twitter:description" content="Software translation and localization is a difficult subject. It seems deceptively simple, but as a Polish proverb says, “the farther into the forest, the more trees”. There’s a big number of people i">
+<meta name="twitter:description" content="TL;DR: There are a lot of small things which you can do to improve translation reuse, but they’d have to be applied from the beginning of the project. If you happen to have one product ready and trans">
   
     <link rel="alternate" href="/atom.xml" title="Jakub&#39;s dev blog" type="application/atom+xml">
   
@@ -88,13 +88,9 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Software translation and localization is a difficult subject. It seems deceptively simple, but as a Polish proverb says, “the farther into the forest, the more trees”. There’s a big number of people involved (developers, product managers, translation agency, translators) and it may take many iterations to obtain good results (this is a subject for a whole separate blog post).</p>
-<p>Whereas there are many resources in the web on the software translation best practices, <strong>there are very few about how to make multiple projects in disparate technologies share the translations</strong>. Translations reuse is not straightforward, because each software platform and framework has a different attitude to the problem; but since the translation agencies very often simply do not do good work, <strong>it’s important to aim for high translation reuse once good translations are available.</strong></p>
-<p>In this blog post, I will write about the task I had last month, which was <strong>to localize an Android app and reuse as much translations as possible from existing iOS and web apps.</strong> I will discuss the pain points to be aware of, and provide some solutions - but there is no silver bullet.</p>
-<p><em>This post will cover only the “string translation” part of the bigger “software localization” process, which includes also accommodating date/time formats and other things.</em></p>
-<h1 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h1><p>There are a lot of small things which you can do to improve translation reuse, but they’d have to be applied
+        <p><strong>TL;DR:</strong> There are a lot of small things which you can do to improve translation reuse, but they’d have to be applied
 from the beginning of the project.</p>
-<p><strong>If you happen to have one product ready and translated, whereas the other one needs translations,
+<p><strong>If you happen to have one product ready and translated, whereas the other(s) need translations,
 I advise you to sign up to <a href="https://poeditor.com" target="_blank" rel="external">POEditor</a>.</strong> It is a very good product and you can tell the guys
 know what they’re doing. During a free trial, you can <strong>import the existing translation from one product, and reuse
 them in another product thanks for the translation memory</strong>, with very low effort. It supports XLIFF, Android XML, JSON and a few other file formats. The drawbacks are that its TM only finds exact matches, and after the trial, the pricing ain’t cheap
@@ -104,8 +100,11 @@ if you have many strings and languages (that’s one of the reasons we didn’t 
 <ul>
 <li>follow this guideline, and set up some processes to allow translation units reuse in the future,</li>
 <li><strong>translate only one app first</strong>, and iterate on the translations until they’re good enough,</li>
-<li>sign up for POEditor or find other translation memory tool, and import the translations to the remaining products.</li>
+<li>when first app translation is done, sign up for POEditor or find other translation memory tool, and export the translations into the remaining products.</li>
 </ul>
+<h1 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h1><p>Software translation and localization is a difficult subject. It seems deceptively simple, but as a Polish proverb says, “the farther into the forest, the more trees”. There’s a big number of people involved (developers, product managers, translation agency, translators) and it may take many iterations to obtain good results (this is a subject for a whole separate blog post).</p>
+<p>Whereas there are many resources in the web on the software translation best practices, <strong>there are very few about how to make multiple projects in disparate technologies share the translations</strong>. Translations reuse is not straightforward, because each software platform and framework has a different attitude to the problem; but since the translation agencies very often simply do not do good work, <strong>it’s important to aim for high translation reuse once good translations are available.</strong></p>
+<p>In this blog post, I will write about the task I had last month, which was <strong>to localize an Android app and reuse as much translations as possible from existing iOS and web apps.</strong> I will discuss the pain points to be aware of, and provide some solutions - but there is no silver bullet.</p>
 <h1 id="Best-practices"><a href="#Best-practices" class="headerlink" title="Best practices"></a>Best practices</h1><p>First I will start with two (of the many) best practices (BP) of software translations.
 I will refer to a string to be translated as a “translation unit”.</p>
 <h2 id="Best-practice-1-don’t-concatenate-strings-and-variables-use-a-template-string-with-placeholder"><a href="#Best-practice-1-don’t-concatenate-strings-and-variables-use-a-template-string-with-placeholder" class="headerlink" title="Best practice 1: don’t concatenate strings and variables, use a template string with placeholder"></a>Best practice 1: don’t concatenate strings and variables, use a template string with placeholder</h2><blockquote>
@@ -198,15 +197,20 @@ yourself which trade-off to make.</p>
 if they are already translated</strong>, but it would be too easy if it was straightforward.</p>
 <p>Android uses placeholders like <code>%d</code>, <code>%s</code>, <code>%1$s</code>, <code>%2$s</code>; iOS uses <code>%@</code>, <code>%1$@</code>, <code>%2$@</code>,
 and various 3rd-party libraries offer different syntaxes.</p>
-<p><strong>It might be reasonable to find a set of libraries (or write yourself if necessary)
-that will allow the exact same syntax for all platforms.</strong> Syntax from <a href="https://github.com/square/phrase" target="_blank" rel="external">Phrase</a>
+<p>It might be reasonable to find a set of libraries (or write yourself if necessary)
+that will allow the exact same syntax for all platforms. Syntax from <a href="https://github.com/square/phrase" target="_blank" rel="external">Phrase</a>
 looks nice. However the problem is that in case of named placeholders, each team
-might use a different placeholder name and we’re in even worse position than before.</p>
-<p>Additionally, in Android’s <code>strings.xml</code> you can wrap your placeholder with an XLIFF
+might use a different placeholder name and we’re in even worse position than before
+unless both teams cooperate.</p>
+<p>Another solution (if you use <code>%d</code>/<code>%@</code> etc.) could be to normalize placeholders
+at the time when you export the strings for translation. For example: after exporting
+XLIFF from Xcode, search-and-replace <code>%@</code> to <code>%s</code>; send the replaced XLIFF to the translators;
+when it comes back, reverse the replacements.</p>
+<p>One more Android caveat: in <code>strings.xml</code>, you can wrap your placeholder with an XLIFF
 tag to facilitate the work to a (knowledgeable) translator: <code>Book a flight to &lt;xliff:g example=&quot;London&quot;&gt;%s&lt;/xliff:g&gt;</code>,
 and those XLIFF tags will be discarded at compilation time. While in theory it sounds great, in practice
-it nearly guarantees that the translation memory won’t match this string with an existing string in its database.
-Yet another trade-off to make.</p>
+it nearly guarantees that the translation memory won’t match this string with an existing string in its database
+(i.e. string from iOS won’t be reused). Yet another trade-off to make.</p>
 <h2 id="Plurals"><a href="#Plurals" class="headerlink" title="Plurals"></a>Plurals</h2><p>While it’s hard with placeholders, it’s even harder with plurals, because pluralization rules differ between each language,
 and of course each platform or library handles it differently.</p>
 <p><a href="https://developer.android.com/guide/topics/resources/string-resource.html#Plurals" target="_blank" rel="external">Android’s implementation</a> seems very good to me: one string per quantity-indicator, grouped together. Some libraries like <a href="https://messageformat.github.io" target="_blank" rel="external">messageformat</a> encode the quantity-selection logic into just one string, which in my opinion is not the most readable nor easiest for the translation agencies, but often they work the way they do due to technical limitations
@@ -214,6 +218,8 @@ of their ecosystem.</p>
 <p>Translation reuse for plurals is hard to achieve. <strong>It’s probably just easiest to translate
 those separately on each platform,
 or to make UI decisions that remove the need for pluralization altogether.</strong></p>
+<p>BTW: In our Android app, we moved all <code>&lt;plurals&gt;</code> to the very end of <code>strings.xml</code> so that they are not mixed with
+the regular strings.</p>
 <h1 id="Process-related-impediments"><a href="#Process-related-impediments" class="headerlink" title="Process-related impediments"></a>Process-related impediments</h1><p>One non-obvious pain point we only learnt about at the last moment was a simple fact that <strong>the UI strings
 have diverged between the platforms</strong>.</p>
 <p>While we were working on the Android app, quite a few the UI strings in the iOS app have changed,
@@ -229,7 +235,7 @@ strings in the iOS app and update the Android sources.</p>
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://jakub.gieryluk.net/blog/reusing-software-translations-ios-android-web/" data-id="cj9wul7sl0003vw8lhjskdavu" class="article-share-link">Share</a>
+      <a data-url="https://jakub.gieryluk.net/blog/reusing-software-translations-ios-android-web/" data-id="cj9wv795k0001lk8lw21ftyxs" class="article-share-link">Share</a>
       
       
   <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/blog/tags/i18n/">i18n</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/blog/tags/l10n/">l10n</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/blog/tags/software-translation/">software-translation</a></li></ul>
