@@ -5,18 +5,14 @@
   
   <title>Real-world HTTPS deployment pitfalls (part 2) | Jakub&#39;s dev blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="This is part 2 of the blog post.
-For part 1, see here,
-where I discuss: how not to overlook an expiring cert; how not to shoot yourself in foot with HSTS; a case of forgotten “nowww”;
-why you should a">
+  <meta name="description" content="This is part 2 of the blog post. For part 1, see here, where I discuss: how not to overlook an expiring cert; how not to shoot yourself in foot with HSTS; a case of forgotten “nowww”; why you should a">
+<meta name="keywords" content="https">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Real-world HTTPS deployment pitfalls (part 2)">
-<meta property="og:url" content="https://jakub.gieryluk.net/blog/https-pitfalls-part2/index.html">
-<meta property="og:site_name" content="Jakub's dev blog">
-<meta property="og:description" content="This is part 2 of the blog post.
-For part 1, see here,
-where I discuss: how not to overlook an expiring cert; how not to shoot yourself in foot with HSTS; a case of forgotten “nowww”;
-why you should a">
+<meta property="og:url" content="https://jakub.gieryluk.net/blog/https-pitfalls-part2/">
+<meta property="og:site_name" content="Jakub&#39;s dev blog">
+<meta property="og:description" content="This is part 2 of the blog post. For part 1, see here, where I discuss: how not to overlook an expiring cert; how not to shoot yourself in foot with HSTS; a case of forgotten “nowww”; why you should a">
+<meta property="og:locale" content="en">
 <meta property="og:image" content="https://jakub.gieryluk.net/blog/blog/https-pitfalls-part2/root-cert-sent-by-server.png">
 <meta property="og:image" content="https://jakub.gieryluk.net/blog/blog/https-pitfalls-part2/two-certs-one-invalid.png">
 <meta property="og:image" content="https://jakub.gieryluk.net/blog/blog/https-pitfalls-part2/two-certs.png">
@@ -26,16 +22,14 @@ why you should a">
 <meta property="og:updated_time" content="2017-11-07T22:13:11.223Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Real-world HTTPS deployment pitfalls (part 2)">
-<meta name="twitter:description" content="This is part 2 of the blog post.
-For part 1, see here,
-where I discuss: how not to overlook an expiring cert; how not to shoot yourself in foot with HSTS; a case of forgotten “nowww”;
-why you should a">
+<meta name="twitter:description" content="This is part 2 of the blog post. For part 1, see here, where I discuss: how not to overlook an expiring cert; how not to shoot yourself in foot with HSTS; a case of forgotten “nowww”; why you should a">
 <meta name="twitter:image" content="https://jakub.gieryluk.net/blog/blog/https-pitfalls-part2/root-cert-sent-by-server.png">
   
     <link rel="alternate" href="/atom.xml" title="Jakub&#39;s dev blog" type="application/atom+xml">
   
+  <link rel="canonical" href="https://jakub.gieryluk.net/blog/https-pitfalls-part2/">
   
-    <link rel="icon" href="/favicon.png">
+    <link rel="icon" href="/favicon.ico">
   
   <link rel="stylesheet" href="/blog/css/style.css">
   
@@ -74,7 +68,7 @@ why you should a">
         <a id="nav-search-btn" class="nav-icon" title="Search"></a>
       </nav>
       <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://jakub.gieryluk.net/blog"></form>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://jakub.gieryluk.net/blog"></form>
       </div>
     </div>
   </div>
@@ -109,7 +103,7 @@ why you should always send intermediate certificates; and TLS 1.2 migration cons
 <h1 id="Extraneous-certificates"><a href="#Extraneous-certificates" class="headerlink" title="Extraneous certificates"></a>Extraneous certificates</h1><p><em>TL;DR: Save yourself some bandwidth, and improve initial render time, by not sending root certificate from the server.</em></p>
 <p>This is technically not a huge problem, but extraneous certificates bloat each new TLS connection,
 and are an equivalent of sending unoptimized JPEGs full of metadata.</p>
-<img src="/blog/https-pitfalls-part2/root-cert-sent-by-server.png" alt="Root cert sent by server" title="Root cert sent by server">
+<img src="/blog/blog/https-pitfalls-part2/root-cert-sent-by-server.png" title="Root cert sent by server">
 <p>Since a TLS handshake is the very first thing happening when connecting to a domain over HTTPS,
 by sending unnecessary data at this stage, you’re increasing initial render time for all users
 (particularly the ones with poor connections and far away from your edge servers).</p>
@@ -122,9 +116,9 @@ there’s no point of sending the root cert.</p>
 recently to one of our partners.</p>
 <p>Initially it seemed like things worked correctly most of the time, but sometimes,
 regardless of the browser and operating system (Windows, iOS, Android), the TLS connection would fail.</p>
-<img src="/blog/https-pitfalls-part2/two-certs-one-invalid.png" alt="Two certificates" title="Two certificates">
+<img src="/blog/blog/https-pitfalls-part2/two-certs-one-invalid.png" title="Two certificates">
 <p>When checked in SSL Labs, it showed two different certificates returned by the server:</p>
-<img src="/blog/https-pitfalls-part2/two-certs.png" alt="Two certificates" title="Two certificates">
+<img src="/blog/blog/https-pitfalls-part2/two-certs.png" title="Two certificates">
 <p>But <em>what does it mean that the server returns two certificates</em>?
 How is this technically possible? Is the problem on the browser side or server
 side?</p>
@@ -165,7 +159,7 @@ static function OnBoot() {
 </code></pre><p>Then I opened <code>/favicon.ico</code> URL of the server in the browser, and hit <code>F5</code> a number of times.</p>
 <p>After this test, I realized that in fact the TLS connection failed
 almost randomly with 50-50 chance, as you can see in the screenshot below:</p>
-<img src="/blog/https-pitfalls-part2/fiddler-azure.png" alt="Random certificates returned by Azure - Fiddler" title="Random certificates returned by Azure - Fiddler">
+<img src="/blog/blog/https-pitfalls-part2/fiddler-azure.png" title="Random certificates returned by Azure - Fiddler">
 <p>It turned out that Azure deployment of our partner was misconfigured and indeed sometimes
 the server was wrongly sending a server certificate of Azure, instead of that of the appropriate customer domain
 (unfortunately, I don’t know more details on why that was the case).</p>
@@ -178,9 +172,9 @@ the server was wrongly sending a server certificate of Azure, instead of that of
 <p>There’s also variation in time: <strong>a device with an operating system from 2009 most likely will not have a root cert issued in 2010!</strong></p>
 <p>Typically the leaf certs are short-lived (months/years), and root certs are long-lived (years/decades), but the issue still holds. <strong>If you need to support very old Windows or Android</strong>, double check that your cert has been signed with an old enough cert (typically the CAs will do it for you - if they use a very new cert, they will also cross-sign using an older cert).</p>
 <p>How can you verify cert’s details? The easiest way is to obtain its fingerprint (hash)…</p>
-<img src="/blog/https-pitfalls-part2/very-new-root-cert.png" alt="Checking details of a root certificate" title="Checking details of a root certificate">
+<img src="/blog/blog/https-pitfalls-part2/very-new-root-cert.png" title="Checking details of a root certificate">
 <p>…and then use it in your favorite search engine, which will lead you to a <a href="https://www.censys.io/certificates/52f0e1c4e58ec629291b60317f074671b85d7ea80d5b07273463534b32b40234" target="_blank" rel="external">Censys cert viewer</a>:</p>
-<img src="/blog/https-pitfalls-part2/comodo-2010-cert.png" alt="Checking details of a root certificate" title="Checking details of a root certificate">
+<img src="/blog/blog/https-pitfalls-part2/comodo-2010-cert.png" title="Checking details of a root certificate">
 <p>The example above is a popular Comodo cert issued in 2010. (Note this does not mean
 it was immediately picked up by the browser vendors on day one after issuance).
 <strong>This particular cert is known to not be present in Android &lt; 5.1.</strong>, nor in Firefox &lt; 36.
@@ -221,7 +215,7 @@ Avoid using certificates from certificate authorities that have a long track of 
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://jakub.gieryluk.net/blog/blog/https-pitfalls-part2/" data-id="cj9vj9qod0001qs8lxt3yfykt" class="article-share-link">Share</a>
+      <a data-url="https://jakub.gieryluk.net/blog/https-pitfalls-part2/" data-id="cj9woc63b0000mg8l6t448bp5" class="article-share-link">Share</a>
       
       
   <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/blog/tags/https/">https</a></li></ul>

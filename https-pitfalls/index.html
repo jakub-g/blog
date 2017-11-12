@@ -5,34 +5,28 @@
   
   <title>Real-world HTTPS deployment pitfalls (part 1) | Jakub&#39;s dev blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="…or one year from life of a web/app developer, seeing broken HTTPS in the wild
-All the things written below actually happened to my team, other teams at my company, or our external partners!
-
-Who is t">
+  <meta name="description" content="…or one year from life of a web/app developer, seeing broken HTTPS in the wild All the things written below actually happened to my team, other teams at my company, or our external partners!  Who is t">
+<meta name="keywords" content="https">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Real-world HTTPS deployment pitfalls (part 1)">
-<meta property="og:url" content="https://jakub.gieryluk.net/blog/https-pitfalls/index.html">
-<meta property="og:site_name" content="Jakub's dev blog">
-<meta property="og:description" content="…or one year from life of a web/app developer, seeing broken HTTPS in the wild
-All the things written below actually happened to my team, other teams at my company, or our external partners!
-
-Who is t">
+<meta property="og:url" content="https://jakub.gieryluk.net/blog/https-pitfalls/">
+<meta property="og:site_name" content="Jakub&#39;s dev blog">
+<meta property="og:description" content="…or one year from life of a web/app developer, seeing broken HTTPS in the wild All the things written below actually happened to my team, other teams at my company, or our external partners!  Who is t">
+<meta property="og:locale" content="en">
 <meta property="og:image" content="https://jakub.gieryluk.net/blog/blog/https-pitfalls/fiddler-certs-expiring-in-30-days.png">
 <meta property="og:image" content="https://jakub.gieryluk.net/blog/blog/https-pitfalls/github-cert.png">
 <meta property="og:image" content="https://jakub.gieryluk.net/blog/blog/https-pitfalls/extra-downloads.png">
 <meta property="og:updated_time" content="2017-11-05T21:56:57.065Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Real-world HTTPS deployment pitfalls (part 1)">
-<meta name="twitter:description" content="…or one year from life of a web/app developer, seeing broken HTTPS in the wild
-All the things written below actually happened to my team, other teams at my company, or our external partners!
-
-Who is t">
+<meta name="twitter:description" content="…or one year from life of a web/app developer, seeing broken HTTPS in the wild All the things written below actually happened to my team, other teams at my company, or our external partners!  Who is t">
 <meta name="twitter:image" content="https://jakub.gieryluk.net/blog/blog/https-pitfalls/fiddler-certs-expiring-in-30-days.png">
   
     <link rel="alternate" href="/atom.xml" title="Jakub&#39;s dev blog" type="application/atom+xml">
   
+  <link rel="canonical" href="https://jakub.gieryluk.net/blog/https-pitfalls/">
   
-    <link rel="icon" href="/favicon.png">
+    <link rel="icon" href="/favicon.ico">
   
   <link rel="stylesheet" href="/blog/css/style.css">
   
@@ -71,7 +65,7 @@ Who is t">
         <a id="nav-search-btn" class="nav-icon" title="Search"></a>
       </nav>
       <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://jakub.gieryluk.net/blog"></form>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://jakub.gieryluk.net/blog"></form>
       </div>
     </div>
   </div>
@@ -136,12 +130,12 @@ if you’re (un)lucky - until you have an urgent issue in production.</strong>.<
   e.Session[&quot;ui-backcolor&quot;] = &quot;red&quot;;
   e.Session[&quot;ui-color&quot;] = &quot;white&quot;;
 }
-</code></pre><img src="/blog/https-pitfalls/fiddler-certs-expiring-in-30-days.png" alt="Certificates expiring in less than 30 days" title="Certificates expiring in less than 30 days">
+</code></pre><img src="/blog/blog/https-pitfalls/fiddler-certs-expiring-in-30-days.png" title="Certificates expiring in less than 30 days">
 <p>Don’t wait to renew the certificate on the last possible day (in particular when it expires on Sunday!) to avoid putting unnecessary stress on your team.</p>
 <h1 id="Missing-intermediate-certificates"><a href="#Missing-intermediate-certificates" class="headerlink" title="Missing intermediate certificates"></a>Missing intermediate certificates</h1><p><em>TL;DR: run <a href="https://www.ssllabs.com/" target="_blank" rel="external">SSL Labs</a> check on your domain and if you see “Extra download” in certification path, <strong>go now and fix it</strong> and come back when done!</em></p>
 <p>First, quick primer on how CA (Certificate Authority) system works. Let’s use GitHub as an example.</p>
 <p>In the image below you see a certificate chain for github.com. There are 3 certs in play:</p>
-<img src="/blog/https-pitfalls/github-cert.png" alt="Missing intermediate certificates" title="Missing intermediate certificates">
+<img src="/blog/blog/https-pitfalls/github-cert.png" title="Missing intermediate certificates">
 <ol>
 <li>Server cert (leaf): This is GitHub’s public cert that they use to secure the TLS session with the user’s browser.</li>
 <li>Intermediate cert of DigiCert, a Certificate Authority which signed (i.e. verified the authenticity) of the cert from GitHub (cert #1).</li>
@@ -159,7 +153,7 @@ if you’re (un)lucky - until you have an urgent issue in production.</strong>.<
 <li>if the intermediate cert is not cached, some browsers will fetch it, but some won’t; <strong>in particular, Android WebView and all versions of Firefox do not fetch any missing certs!</strong></li>
 </ul>
 <p>See an example of <a href="https://incomplete-chain.badssl.com/" target="_blank" rel="external">a misconfigured server</a> below:</p>
-<img src="/blog/https-pitfalls/extra-downloads.png" alt="Missing intermediate certificates" title="Missing intermediate certificates">
+<img src="/blog/blog/https-pitfalls/extra-downloads.png" title="Missing intermediate certificates">
 <p>This servers’s cert can be verified via two certification paths (because the intermediary cert has been cross-signed by two different certs), but unfortunately none of paths can be reliably resolved by the browser without an extra download.</p>
 <p><strong>If you see “extra download” in SSL Labs, go now and fix it!</strong> Your page might be randomly not working for many of your users (but it might be sporadic enough that you don’t get any reports).</p>
 <p>See also:</p>
@@ -237,7 +231,7 @@ and provide some links to helpful tools and external resources.</em></p>
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://jakub.gieryluk.net/blog/blog/https-pitfalls/" data-id="cj9vj9qo90000qs8lx6f8owk0" class="article-share-link">Share</a>
+      <a data-url="https://jakub.gieryluk.net/blog/https-pitfalls/" data-id="cj9woc63o0003mg8ldql5ou48" class="article-share-link">Share</a>
       
       
   <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/blog/tags/https/">https</a></li></ul>

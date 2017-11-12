@@ -124,7 +124,7 @@ body,
 }
 body {
   background: #eee;
-  font: 1rem "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font: 0.9rem "Helvetica Neue", Helvetica, Arial, sans-serif;
   -webkit-text-size-adjust: 100%;
 }
 .outer {
@@ -407,9 +407,9 @@ body {
 .nav-icon {
   font-family: FontAwesome;
   text-align: center;
-  font-size: 1rem;
-  width: 1rem;
-  height: 1rem;
+  font-size: 0.9rem;
+  width: 0.9rem;
+  height: 0.9rem;
   padding: 20px 15px;
   position: relative;
   cursor: pointer;
@@ -640,7 +640,7 @@ a.article-title:hover {
   background: #f0f8ff;
 }
 .article-entry blockquote footer {
-  font-size: 1rem;
+  font-size: 0.9rem;
   margin: 1.6em 0;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
@@ -1112,7 +1112,7 @@ a.article-title:hover {
   border-width: 1px 0;
   overflow: auto;
   color: #ccc;
-  line-height: 1.6rem;
+  line-height: 1.44rem;
 }
 .article-entry .highlight .gutter pre,
 .article-entry .gist .gist-file .gist-data .line-numbers {
@@ -1169,7 +1169,7 @@ a.article-title:hover {
   padding-right: 20px;
 }
 .article-entry .highlight .line {
-  height: 1.6rem;
+  height: 1.44rem;
 }
 .article-entry .highlight .line.marked {
   background: #515151;
